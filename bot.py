@@ -1,9 +1,12 @@
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, CallbackQueryHandler, CommandHandler
+from dotenv import load_dotenv
+import os
 
 from gpt import *
 from util import *
 
-TOKEN = '8121645269:AAGzPHu1_7FoEKEbfnkMUnnPdQVW86lpCsg'
+load_dotenv(dotenv_path='config.env')
+TOKEN = os.getenv('TG_TOKEN')
 
 
 async def start(update, context):
