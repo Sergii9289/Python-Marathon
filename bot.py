@@ -12,6 +12,8 @@ AI_TOKEN = os.getenv('AI_TOKEN')
 dialog = Dialog()  # створюємо екземпляр порожнього класу Dialog
 dialog.mode = 'main'  # Додаємо новий атрибут mode до об'єкту dialog та призначаємо йому значення 'main' as default
 dialog.list = []  # порожній список для накопичування повідомлень
+dialog.user = {}
+dialog.counter = 0
 
 chatgpt = ChatGptService(token=AI_TOKEN)
 
@@ -102,8 +104,83 @@ async def message_button(update, context):
     user_chat_history = '\n\n'.join(dialog.list)
 
     my_message = await send_text(update, context, text='думаю над варіантами...')
+    # відправляємо дані чату GPT для обробки
     answer = await chatgpt.send_question(prompt_text=prompt, message_text=user_chat_history)
     await my_message.edit_text(answer)  # показує текст my_message до моменту відповіді ШІ
+
+
+async def profile(update, context):
+    dialog.mode = 'profile'
+    msg = load_message('profile')
+    await send_photo(update, context, name='profile')
+    await send_text(update, context, msg)
+    dialog.user.clear()
+    dialog.counter = 0
+    # все, що далі буде писати у відповідь user буде потрапляти у profile_dialog()
+    await send_text(update, context, text='Скільки вам років?')
+
+
+async def profile_dialog(update, context):
+    text = update.message.text
+    dialog.counter += 1
+
+    if dialog.counter == 1:
+        dialog.user['age'] = text  # заповнюємо словник dialog.user даними
+        await send_text(update, context, text='Ким ви працюєте?')
+    if dialog.counter == 2:
+        dialog.user['occupation'] = text
+        await send_text(update, context, text='Яке у вас хобі?')
+    if dialog.counter == 3:
+        dialog.user['hobby'] = text
+        await send_text(update, context, text='Що вам НЕ подобається в людях?')
+    if dialog.counter == 4:
+        dialog.user['annoys'] = text
+        await send_text(update, context, text='Мета знайомства?')
+    if dialog.counter == 5:
+        dialog.user['goals'] = text
+        prompt = load_prompt('profile')
+        user_info = dialog_user_info_to_str(dialog.user)  # робимо зі словника текстовий файл
+
+        my_message = await send_text(update, context, text='ChatGPT генерує ваш профіль. Зачекайте декілька секунд...')
+        answer = await chatgpt.send_question(prompt, user_info)  # відправляємо дані чату GPT для обробки
+        await my_message.edit_text(answer)  # показує текст my_message до моменту відповіді ШІ
+
+
+async def opener(update, context):
+    dialog.mode = 'opener'
+    msg = load_message('opener')
+    await send_photo(update, context, name='opener')
+    await send_text(update, context, msg)
+    dialog.user.clear()
+    dialog.counter = 0
+    # все, що далі буде писати у відповідь user буде потрапляти у profile_dialog()
+    await send_text(update, context, text='Ім\'я партнера?')
+
+async def opener_dialog(update, context):
+    text = update.message.text
+    dialog.counter += 1
+
+    if dialog.counter == 1:
+        dialog.user['name'] = text  # заповнюємо словник dialog.user даними
+        await send_text(update, context, text='Скільки років партнеру?')
+    if dialog.counter == 2:
+        dialog.user['age'] = text
+        await send_text(update, context, text='Оцініть зовнішність: 1-10 балів?')
+    if dialog.counter == 3:
+        dialog.user['handsome'] = text
+        await send_text(update, context, text='Ким працює?')
+    if dialog.counter == 4:
+        dialog.user['occupation'] = text
+        await send_text(update, context, text='Мета знайомства?')
+    if dialog.counter == 5:
+        dialog.user['goals'] = text
+
+        prompt = load_prompt('opener')
+        user_info = dialog_user_info_to_str(dialog.user)  # робимо зі словника текстовий файл
+
+        my_message = await send_text(update, context, text='ChatGPT генерує ваші повідомлення...')
+        answer = await chatgpt.send_question(prompt, user_info)  # відправляємо дані чату GPT для обробки
+        await my_message.edit_text(answer)  # показує текст my_message до моменту відповіді ШІ
 
 
 async def hello(update, context):
@@ -115,6 +192,10 @@ async def hello(update, context):
         await date_dialog(update, context)
     elif dialog.mode == 'message':
         await message_dialog(update, context)
+    elif dialog.mode == 'profile':
+        await profile_dialog(update, context)
+    elif dialog.mode == 'opener':
+        await opener_dialog(update, context)
 
 
 if __name__ == '__main__':
@@ -123,6 +204,8 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler('gpt', gpt))  # обробник команди /gpt
     app.add_handler(CommandHandler('date', date))  # обробник команди /date
     app.add_handler(CommandHandler('message', message))  # обробник команди /message
+    app.add_handler(CommandHandler('profile', profile))  # обробник команди /profile
+    app.add_handler(CommandHandler('opener', opener))  # обробник команди /opener
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, hello))  # обробник
     # всіх текстів з командної строки
     app.add_handler(CallbackQueryHandler(date_button, pattern='^date_.*'))  # обробник запитів з кнопок
